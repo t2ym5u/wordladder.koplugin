@@ -1,0 +1,18 @@
+return {
+    ["Hint"]        = { fr = "Indice" },
+    [" letters"]                                     = { fr = " lettres" },
+    ["%1 → %2  (step %3)"]                            = { fr = "%1 → %2  (étape %3)" },
+    ["Already used that word!"]                       = { fr = "Ce mot a déjà été utilisé !" },
+    ["Change exactly one letter!"]                    = { fr = "Changez exactement une lettre !" },
+    ["Change one word into another, one letter at a time."] = { fr = "Transformez un mot en un autre, une lettre à la fois." },
+    ["Hint: %1"]                                      = { fr = "Indice : %1" },
+    ["Last word undone."]                             = { fr = "Dernier mot annulé." },
+    ["Length: %1"]                                    = { fr = "Longueur : %1" },
+    ["New puzzle"]                                    = { fr = "Nouvelle grille" },
+    ["No hint available."]                            = { fr = "Aucun indice disponible." },
+    ["No puzzle available for this word length."]     = { fr = "Aucune grille disponible pour cette longueur de mot." },
+    ["Not a real word!"]                              = { fr = "Ce n'est pas un mot valide !" },
+    ["Solved in %1 steps! Wins: %2"]                  = { fr = "Résolu en %1 étapes ! Victoires : %2" },
+    ["Word Ladder"]                                   = { fr = "Échelle de mots" },
+    ["Word length"]                                   = { fr = "Longueur du mot" },
+}
