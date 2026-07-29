@@ -7,7 +7,10 @@ local function lrequire(name)
     return package.loaded[key]
 end
 
-local WORDS_EN = lrequire("words_en")
+local WORDS = {
+    en = lrequire("words_en"),
+    fr = lrequire("words_fr"),
+}
 
 local WORD_LENGTHS        = { 3, 4, 5 }
 local DEFAULT_WORD_LENGTH = 4
@@ -15,10 +18,8 @@ local DEFAULT_DIFFICULTY  = "easy"
 local DIFFICULTY_STEPS    = { easy = 3, medium = 5, hard = 7 }
 local GENERATE_ATTEMPTS   = 20
 
--- Only EN is bundled for v1 -- word_length/lang stay separate fields so a
--- future words_fr.lua can be dropped in without changing the board API.
 local function dictionaryFor(lang)
-    return WORDS_EN
+    return WORDS[lang] or WORDS.en
 end
 
 local function wordsOfLength(len, lang)

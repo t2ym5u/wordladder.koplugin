@@ -74,7 +74,8 @@ function WordLadderScreen:init()
     local state       = self.plugin:loadState()
     local word_length = self.plugin:getSetting("word_length", WordLadderBoard.DEFAULT_WORD_LENGTH)
     local difficulty  = self.plugin:getSetting("difficulty", WordLadderBoard.DEFAULT_DIFFICULTY)
-    self.board = WordLadderBoard:new{ word_length = word_length, difficulty = difficulty }
+    local lang         = self.plugin:getSetting("lang", "en")
+    self.board = WordLadderBoard:new{ word_length = word_length, difficulty = difficulty, lang = lang }
     if not self.board:load(state) then
         self.board:newPuzzle()
     end
@@ -97,6 +98,7 @@ function WordLadderScreen:buildLayout()
     local title_bar = self:buildTitleBar(_("Word Ladder"), function()
         return {
             { text = _("New puzzle"),           callback = function() self:onNewPuzzle() end },
+            { text = self:_langLabel(),         callback = function() self:openLangMenu() end },
             { text = self:_wordLengthLabel(),   callback = function() self:openWordLengthMenu() end },
             { text = self:_difficultyLabel(),   callback = function() self:openDifficultyMenu() end },
             { text = _("Hint"),                 callback = function() self:onHint() end },
@@ -222,6 +224,27 @@ function WordLadderScreen:onUndo()
     self.plugin:saveState(self.board:serialize())
 end
 
+function WordLadderScreen:openLangMenu()
+    local items = {
+        { id = "en", text = _("English") },
+        { id = "fr", text = _("Français") },
+    }
+    MenuHelper.openPickerMenu{
+        title      = _("Language"),
+        items      = items,
+        current_id = self.plugin:getSetting("lang", "en"),
+        parent     = self,
+        on_select  = function(lang)
+            self.plugin:saveSetting("lang", lang)
+            self.board = WordLadderBoard:new{ word_length = self.board.word_length, difficulty = self.board.difficulty, lang = lang }
+            self.board:newPuzzle()
+            self.plugin:saveState(self.board:serialize())
+            self:buildLayout()
+            UIManager:setDirty(self, function() return "ui", self.dimen end)
+        end,
+    }
+end
+
 function WordLadderScreen:openWordLengthMenu()
     local items = {}
     for _, len in ipairs(WordLadderBoard.WORD_LENGTHS) do
@@ -234,7 +257,7 @@ function WordLadderScreen:openWordLengthMenu()
         parent     = self,
         on_select  = function(len)
             self.plugin:saveSetting("word_length", len)
-            self.board = WordLadderBoard:new{ word_length = len, difficulty = self.board.difficulty }
+            self.board = WordLadderBoard:new{ word_length = len, difficulty = self.board.difficulty, lang = self.board.lang }
             self.board:newPuzzle()
             self.plugin:saveState(self.board:serialize())
             self:buildLayout()
@@ -279,6 +302,11 @@ function WordLadderScreen:updateStatus(msg)
             #self.board.chain)
     end
     ScreenBase.updateStatus(self, status)
+end
+
+function WordLadderScreen:_langLabel()
+    local lang = self.plugin:getSetting("lang", "en")
+    return lang == "fr" and "FR" or "EN"
 end
 
 function WordLadderScreen:_wordLengthLabel()
