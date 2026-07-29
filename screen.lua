@@ -7,7 +7,6 @@ local function lrequire(name)
     return package.loaded[key]
 end
 
-local ButtonTable     = require("ui/widget/buttontable")
 local Device          = require("device")
 local FrameContainer  = require("ui/widget/container/framecontainer")
 local HorizontalGroup = require("ui/widget/horizontalgroup")
@@ -21,6 +20,7 @@ local T               = require("ffi/util").template
 
 local ScreenBase           = require("screen_base")
 local MenuHelper           = require("menu_helper")
+local KeyboardWidget        = lrequire("common/keyboard_widget")
 local WordLadderBoard       = lrequire("board")
 local WordLadderBoardWidget = lrequire("board_widget")
 
@@ -61,14 +61,6 @@ local WordLadderScreen = ScreenBase:extend{}
 local WORD_LENGTH_LABELS = { [3] = "3", [4] = "4", [5] = "5" }
 local DIFFICULTY_LABELS  = { easy = _("Easy"), medium = _("Medium"), hard = _("Hard") }
 local DIFFICULTY_ORDER   = { "easy", "medium", "hard" }
-
--- Keyboard rows (letters only -- ↵/⌫ live in a separate utility row so the
--- letter rows stay a clean QWERTY layout regardless of word_length).
-local KEY_ROWS = {
-    {"Q","W","E","R","T","Y","U","I","O","P"},
-    {"A","S","D","F","G","H","J","K","L"},
-    {"↵","Z","X","C","V","B","N","M","⌫"},
-}
 
 function WordLadderScreen:init()
     local state       = self.plugin:loadState()
@@ -120,23 +112,12 @@ function WordLadderScreen:buildLayout()
         self.board_widget,
     }
 
-    local key_rows_cfg = {}
-    for _, row in ipairs(KEY_ROWS) do
-        local btns = {}
-        for _, key in ipairs(row) do
-            local k = key
-            btns[#btns + 1] = {
-                id       = "key_" .. k,
-                text     = k,
-                callback = function() self:onKeyPress(k) end,
-            }
-        end
-        key_rows_cfg[#key_rows_cfg + 1] = btns
-    end
-    self.keyboard_widget = ButtonTable:new{
-        shrink_unneeded_width = true,
-        width   = btn_width,
-        buttons = key_rows_cfg,
+    self.keyboard_widget = KeyboardWidget.build{
+        width     = btn_width,
+        layout    = (self.board.lang == "fr") and "azerty" or "qwerty",
+        backspace = true,
+        enter     = true,
+        onKey     = function(k) self:onVirtualKey(k) end,
     }
 
     if is_landscape then
@@ -165,7 +146,7 @@ function WordLadderScreen:buildLayout()
     self:updateStatus()
 end
 
-function WordLadderScreen:onKeyPress(key)
+function WordLadderScreen:onVirtualKey(key)
     if key == "↵" then
         local result = self.board:submit()
         if result == "invalid_length" then
