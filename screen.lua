@@ -87,6 +87,8 @@ function WordLadderScreen:buildLayout()
         and math.max(math.floor(sw * 0.38), 120)
         or  math.floor(sw * 0.9)
 
+    self.status_text:setMaxWidth(btn_width)
+
     local title_bar = self:buildTitleBar(_("Word Ladder"), function()
         return {
             { text = _("New puzzle"),           callback = function() self:onNewPuzzle() end },
@@ -228,8 +230,9 @@ end
 
 function WordLadderScreen:openWordLengthMenu()
     local items = {}
+    local suffix = _(" letters")
     for _, len in ipairs(WordLadderBoard.WORD_LENGTHS) do
-        items[#items + 1] = { id = len, text = WORD_LENGTH_LABELS[len] .. _(" letters") }
+        items[#items + 1] = { id = len, text = WORD_LENGTH_LABELS[len] .. suffix }
     end
     MenuHelper.openPickerMenu{
         title      = _("Word length"),
