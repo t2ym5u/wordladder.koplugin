@@ -1,5 +1,4 @@
 return {
-    ["Hint"]        = { fr = "Indice", es = "Pista", de = "Hinweis" },
     [" letters"]                                     = { fr = " lettres", es = " letras", de = " Buchstaben" },
     ["%1 → %2  (step %3)"]                            = { fr = "%1 → %2  (étape %3)", es = "%1 → %2  (paso %3)", de = "%1 → %2  (Schritt %3)" },
     ["Already used that word!"]                       = { fr = "Ce mot a déjà été utilisé !", es = "¡Esa palabra ya se usó!", de = "Dieses Wort wurde bereits verwendet!" },
