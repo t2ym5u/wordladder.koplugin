@@ -79,73 +79,77 @@ function WordLadderScreen:serializeState()
 end
 
 function WordLadderScreen:buildLayout()
-    local sw = DeviceScreen:getWidth()
-    local sh = DeviceScreen:getHeight()
     local is_landscape = self:isLandscape()
-
-    local btn_width = is_landscape
-        and math.max(math.floor(sw * 0.38), 120)
-        or  math.floor(sw * 0.9)
-
-    self.status_text:setMaxWidth(btn_width)
 
     local title_bar = self:buildTitleBar(_("Word Ladder"), function()
         return {
-            { text = _("New puzzle"),           callback = function() self:onNewPuzzle() end },
+            { text = _("New game"),             callback = function() self:onNewPuzzle() end },
+            { text = self:_difficultyLabel(),   callback = function() self:openDifficultyMenu() end },
             { text = self:_langLabel(),         callback = function() self:openLangMenu() end },
             { text = self:_wordLengthLabel(),   callback = function() self:openWordLengthMenu() end },
-            { text = self:_difficultyLabel(),   callback = function() self:openDifficultyMenu() end },
-            { text = _("Hint"),                 callback = function() self:onHint() end },
-            { text = _("Undo"),                 callback = function() self:onUndo() end },
             self:makeRulesButtonConfig(GAME_RULES_EN, GAME_RULES_FR),
         }
     end)
 
-    local board_h = is_landscape and (sh - 40) or math.floor(sh * 0.45)
+    local controls_w = self:getControlsWidth()
+    self.status_text:setMaxWidth(controls_w)
+    self.keyboard_widget = KeyboardWidget.build{
+        width      = controls_w,
+        key_height = DeviceScreen:scaleBySize(52),
+        backspace  = true,
+        enter      = true,
+        onKey      = function(k) self:onVirtualKey(k) end,
+    }
+    local controls = VerticalGroup:new{
+        align = "center",
+        self.status_text,
+        VerticalSpan:new{ width = Size.span.vertical_large },
+        self.keyboard_widget,
+        VerticalSpan:new{ width = Size.span.vertical_default },
+        self:buildActionBar({
+            { text = _("Hint"), callback = function() self:onHint() end },
+            { text = _("Undo"), callback = function() self:onUndo() end },
+        }),
+    }
+
+    local frame_pad   = Size.padding.default
+    local frame_extra = 2 * (frame_pad + Size.border.window)
+    local budget_w, budget_h = self:getBoardBudget(title_bar, controls)
     self.board_widget = WordLadderBoardWidget:new{
         board  = self.board,
-        width  = btn_width,
-        height = math.max(board_h, 120),
+        width  = math.max(budget_w - frame_extra, 100),
+        height = math.max(budget_h - frame_extra, 120),
     }
 
     local board_frame = FrameContainer:new{
-        padding = Size.padding.default,
-        margin  = Size.margin.default,
+        padding = frame_pad,
+        margin  = 0,
         self.board_widget,
     }
 
-    self.keyboard_widget = KeyboardWidget.build{
-        width     = btn_width,
-        layout    = (self.board.lang == "fr") and "azerty" or "qwerty",
-        backspace = true,
-        enter     = true,
-        onKey     = function(k) self:onVirtualKey(k) end,
-    }
-
     if is_landscape then
-        local right = VerticalGroup:new{
-            align = "center",
-            self.status_text,
-            VerticalSpan:new{ width = Size.span.vertical_large },
-            self.keyboard_widget,
-        }
         local content = HorizontalGroup:new{
-            align  = "center",
+            align = "center",
             board_frame,
-            HorizontalSpan:new{ width = Size.span.horizontal_default },
-            right,
+            HorizontalSpan:new{ width = self:getGutter() },
+            controls,
         }
         self:buildLandscapeLayout(title_bar, content)
     else
-        local footer = VerticalGroup:new{
-            align = "center",
-            self.keyboard_widget,
-            VerticalSpan:new{ width = Size.span.vertical_large },
-            self.status_text,
-        }
-        self:buildPortraitLayout(title_bar, board_frame, footer)
+        self:buildPortraitLayout(title_bar, board_frame,
+            VerticalGroup:new{ align = "center", controls, VerticalSpan:new{ width = self:getGutter() } })
     end
     self:updateStatus()
+end
+
+-- Every move that can end or reopen the round (submit, Undo, new puzzle)
+-- rebuilds the layout, so the bar follows without a refreshActionBar call.
+function WordLadderScreen:isRoundOver()
+    return self.board:isSolved()
+end
+
+function WordLadderScreen:getRoundOverButtons()
+    return { { text = _("New game"), callback = function() self:onNewPuzzle() end } }
 end
 
 function WordLadderScreen:onVirtualKey(key)
@@ -235,7 +239,7 @@ function WordLadderScreen:openWordLengthMenu()
         items[#items + 1] = { id = len, text = WORD_LENGTH_LABELS[len] .. suffix }
     end
     MenuHelper.openPickerMenu{
-        title      = _("Word length"),
+        title      = _("Length"),
         items      = items,
         current_id = self.board.word_length,
         parent     = self,
@@ -280,17 +284,18 @@ function WordLadderScreen:updateStatus(msg)
     elseif self.board.status == "no_puzzle" then
         status = _("No puzzle available for this word length.")
     else
-        status = T(_("%1 → %2  (step %3)"),
-            self.board.start_word and self.board.start_word:upper() or "",
-            self.board.end_word and self.board.end_word:upper() or "",
-            #self.board.chain)
+        -- The board already shows the target and every word so far; the
+        -- line stays short enough for the landscape side panel.
+        status = self:joinStatus(
+            DIFFICULTY_LABELS[self.board.difficulty],
+            T(_("Steps: %1"), #self.board.chain - 1))
     end
     ScreenBase.updateStatus(self, status)
 end
 
 function WordLadderScreen:_langLabel()
     local lang = self.plugin:getSetting("lang", "en")
-    return lang == "fr" and "FR" or "EN"
+    return T(_("Language: %1"), lang == "fr" and "FR" or "EN")
 end
 
 function WordLadderScreen:_wordLengthLabel()
