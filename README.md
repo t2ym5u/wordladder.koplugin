@@ -30,8 +30,8 @@ Classic word-ladder puzzles: change one word into another, one letter at a time.
 | Submit a word | Type it and confirm |
 | Request a hint | Tap **Hint** |
 | Undo last word | Tap **Undo** |
-| New puzzle | Tap **New puzzle** |
-| Change word length / difficulty | Tap **Word length** / **Difficulty** |
+| New puzzle | Tap **New game** |
+| Change word length / difficulty | Tap **Length** / **Difficulty** |
 
 ## Installation
 

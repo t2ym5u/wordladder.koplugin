@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - 2026-10-30
+
+### Changed
+- Redesigned play screen: the ladder fills the room the keyboard leaves,
+  every row at the same size, and Hint and Undo moved from the title-bar menu
+  to a full-width bar under the keyboard. The keys are finger-sized.
+- A long ladder keeps its newest words on screen: the oldest drop off the top
+  behind "…" instead of running off the board.
+- The title-bar menu follows the order every game uses: New game (was "New
+  puzzle"), "Difficulty: …", "Language: …", "Length: …", Rules.
+- The status line reads "Medium · Steps: 3" (the board already shows the
+  start, target and every word) and wraps in landscape.
+- The keyboard follows KOReader's language (AZERTY in French, QWERTZ in
+  German) instead of the word list's language.
+- Once the ladder is solved, the bar shows "New game" in place of Hint and
+  Undo.
+
+### Fixed
+- Words were sized from the board height and then scaled again for the
+  screen's DPI, so they could overflow the board; they are now measured to
+  fit it.
+
 ## [1.0.14] - 2026-10-02
 
 ### Fixed
