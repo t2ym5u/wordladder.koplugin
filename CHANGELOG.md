@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.2] - 2026-11-02
+
+### Changed
+- Family-friendly words: the start and target words and the solution path
+  behind the hints are never vulgar, sexual, scatological, slur or
+  drug-related any more (`blocklist.lua`) -- 42 English and 44 French words.
+  They stay in the dictionary.
+
 ## [1.1.1] - 2026-11-02
 
 ### Changed

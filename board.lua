@@ -22,11 +22,17 @@ local function dictionaryFor(lang)
     return WORDS[lang] or WORDS.en
 end
 
+-- Puzzles (start, target, the solution path and its hints) are built from
+-- this list only, so a blocklisted word (blocklist.lua) is never shown --
+-- it stays in the dictionary, so a player may still step through it.
+local Blocklist = lrequire("blocklist")
+
 local function wordsOfLength(len, lang)
     local dict = dictionaryFor(lang)
+    local blocked = Blocklist.set(lang)
     local list = {}
     for w, _ in pairs(dict) do
-        if #w == len then list[#list + 1] = w end
+        if #w == len and not blocked[w:upper()] then list[#list + 1] = w end
     end
     return list
 end
