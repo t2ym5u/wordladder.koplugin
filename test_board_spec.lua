@@ -267,3 +267,29 @@ describe("word graph", function()
         assert.is_true((os.clock() - t0) / n < 0.02)
     end)
 end)
+
+-- The word lists load with the first puzzle of a language, only that
+-- language's, and release() (the screen closing) drops them.
+describe("word data loading", function()
+    local Board
+
+    setup(function()
+        Board = require("board")
+        Board.release()
+    end)
+
+    it("loads nothing until a puzzle is made, then only that language", function()
+        assert.are.same({}, Board.loadedLanguages())
+        local b = Board:new{ word_length = 4, difficulty = "easy", lang = "fr" }
+        assert.are.same({}, Board.loadedLanguages())
+        b:newPuzzle()
+        assert.are.same({ "fr" }, Board.loadedLanguages())
+        Board.release()
+        assert.are.same({}, Board.loadedLanguages())
+        -- A board still works after release: its language loads again.
+        b:newPuzzle()
+        assert.is_not_nil(b.start_word)
+        assert.are.same({ "fr" }, Board.loadedLanguages())
+        Board.release()
+    end)
+end)

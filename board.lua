@@ -7,10 +7,11 @@ local function lrequire(name)
     return package.loaded[key]
 end
 
-local WORDS = {
-    en = lrequire("words_en"),
-    fr = lrequire("words_fr"),
-}
+-- Word lists are read with loadfile, not lrequire: package.loaded would keep
+-- them for the whole session.
+local function loadWordList(name)
+    return assert(loadfile(_dir .. name .. ".lua"))()
+end
 
 local WORD_LENGTHS        = { 3, 4, 5 }
 local DEFAULT_WORD_LENGTH = 4
@@ -18,8 +19,26 @@ local DEFAULT_DIFFICULTY  = "easy"
 local DIFFICULTY_STEPS    = { easy = 3, medium = 5, hard = 7 }
 local GENERATE_ATTEMPTS   = 20
 
+-- A language's word data -- its dictionary (word -> true) and the word graphs
+-- built from it (graphFor) -- loads the first time that language is played,
+-- not with the module, and only that language's. WordLadderBoard.release()
+-- (the screen closing) drops it all: it is quick to build again and only
+-- needed while a game is open.
+local DATA = {}
+
+local function langData(lang)
+    lang = lang == "fr" and "fr" or "en"
+    local d = DATA[lang]
+    if not d then
+        d = { lang = lang, words = loadWordList("words_" .. lang), graphs = {} }
+        -- Only one language at a time: switching drops the previous one.
+        DATA = { [lang] = d }
+    end
+    return d
+end
+
 local function dictionaryFor(lang)
-    return WORDS[lang] or WORDS.en
+    return langData(lang).words
 end
 
 -- Puzzles (start, target, the solution path and its hints) are built from
@@ -39,19 +58,19 @@ local function oneLetterDiff(a, b)
     return diff == 1
 end
 
--- The word graph of one language and length, built on first use and kept:
+-- The word graph of one language and length, built on first use and kept
+-- until release():
 -- the puzzle words (`list`, in the dictionary's iteration order) and, per
 -- word, its one-letter neighbours (`adj`). Neighbours come from wildcard
 -- buckets ("c_t" -> cat, cot, cut...) instead of scanning the whole list for
 -- every visited word, which made a 4-letter Hard ladder take ~0.1 s on a
 -- desktop (seconds on a reader), and the list was rebuilt for every puzzle.
 -- Neighbours stay in list order, so a seed picks the same ladder as before.
-local graphs = {}
-
 local function graphFor(len, lang)
-    local dict = dictionaryFor(lang)
-    local key = (dict == WORDS[lang] and lang or "en") .. len
-    if graphs[key] then return graphs[key] end
+    local d = langData(lang)
+    local graphs = d.graphs
+    if graphs[len] then return graphs[len] end
+    local dict = d.words
     local blocked = Blocklist.set(lang)
     local list, pos = {}, {}
     for w, _ in pairs(dict) do
@@ -83,8 +102,8 @@ local function graphFor(len, lang)
         table.sort(out, byPos)
         adj[w] = out
     end
-    graphs[key] = { list = list, adj = adj }
-    return graphs[key]
+    graphs[len] = { list = list, adj = adj }
+    return graphs[len]
 end
 
 -- BFS shortest path from `start` to `goal` over the word graph `adj`
@@ -301,6 +320,21 @@ function WordLadderBoard:load(data)
     self.hints_used          = data.hints_used or 0
     self.wins                = data.wins or 0
     return true
+end
+
+-- Drops every loaded dictionary and word graph (called when the game screen
+-- closes); the next game reads its language's list again.
+function WordLadderBoard.release()
+    DATA = {}
+    Blocklist.release()
+end
+
+-- The languages whose word data is loaded now (for the specs).
+function WordLadderBoard.loadedLanguages()
+    local out = {}
+    for lang in pairs(DATA) do out[#out + 1] = lang end
+    table.sort(out)
+    return out
 end
 
 return WordLadderBoard

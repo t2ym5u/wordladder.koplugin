@@ -56,7 +56,11 @@ Utilisez le clavier à l'écran pour saisir chaque mot suivant. Appuyez sur ↵ 
 Utilisez "Indice" pour révéler le mot suivant d'une solution optimale, ou "Annuler" pour revenir en arrière.
 ]]
 
-local WordLadderScreen = ScreenBase:extend{}
+-- A wider landscape side panel than the fleet default: the keyboard is the
+-- whole control, and its ten keys a row need the width (common/screen_base).
+local WordLadderScreen = ScreenBase:extend{
+    landscape_controls_ratio = 0.5,
+}
 
 local WORD_LENGTH_LABELS = { [3] = "3", [4] = "4", [5] = "5" }
 local DIFFICULTY_LABELS  = { easy = _("Easy"), medium = _("Medium"), hard = _("Hard") }
@@ -304,6 +308,12 @@ end
 
 function WordLadderScreen:_difficultyLabel()
     return T(_("Difficulty: %1"), DIFFICULTY_LABELS[self.board.difficulty])
+end
+
+-- The word lists are only needed while a game is open: drop them when the
+-- screen closes (the next game reads its language's list again).
+function WordLadderScreen:onCloseWidget()
+    WordLadderBoard.release()
 end
 
 return WordLadderScreen
