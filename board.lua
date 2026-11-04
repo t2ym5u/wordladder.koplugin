@@ -27,16 +27,6 @@ end
 -- it stays in the dictionary, so a player may still step through it.
 local Blocklist = lrequire("blocklist")
 
-local function wordsOfLength(len, lang)
-    local dict = dictionaryFor(lang)
-    local blocked = Blocklist.set(lang)
-    local list = {}
-    for w, _ in pairs(dict) do
-        if #w == len and not blocked[w:upper()] then list[#list + 1] = w end
-    end
-    return list
-end
-
 local function oneLetterDiff(a, b)
     if #a ~= #b then return false end
     local diff = 0
@@ -49,29 +39,65 @@ local function oneLetterDiff(a, b)
     return diff == 1
 end
 
--- Brute-force scan: cheap at these list sizes (<= ~850 same-length words),
--- no precomputed adjacency structure needed or serialized.
-local function neighbors(word, word_list)
-    local out = {}
-    for _, w in ipairs(word_list) do
-        if w ~= word and oneLetterDiff(word, w) then
-            out[#out + 1] = w
+-- The word graph of one language and length, built on first use and kept:
+-- the puzzle words (`list`, in the dictionary's iteration order) and, per
+-- word, its one-letter neighbours (`adj`). Neighbours come from wildcard
+-- buckets ("c_t" -> cat, cot, cut...) instead of scanning the whole list for
+-- every visited word, which made a 4-letter Hard ladder take ~0.1 s on a
+-- desktop (seconds on a reader), and the list was rebuilt for every puzzle.
+-- Neighbours stay in list order, so a seed picks the same ladder as before.
+local graphs = {}
+
+local function graphFor(len, lang)
+    local dict = dictionaryFor(lang)
+    local key = (dict == WORDS[lang] and lang or "en") .. len
+    if graphs[key] then return graphs[key] end
+    local blocked = Blocklist.set(lang)
+    local list, pos = {}, {}
+    for w, _ in pairs(dict) do
+        if #w == len and not blocked[w:upper()] then
+            list[#list + 1] = w
+            pos[w] = #list
         end
     end
-    return out
+    local function bucketKey(w, i) return w:sub(1, i - 1) .. "_" .. w:sub(i + 1) end
+    local buckets = {}
+    for _, w in ipairs(list) do
+        for i = 1, len do
+            local k = bucketKey(w, i)
+            local bucket = buckets[k]
+            if not bucket then bucket = {}; buckets[k] = bucket end
+            bucket[#bucket + 1] = w
+        end
+    end
+    local function byPos(x, y) return pos[x] < pos[y] end
+    local adj = {}
+    for _, w in ipairs(list) do
+        -- two distinct words share at most one bucket: no duplicates
+        local out = {}
+        for i = 1, len do
+            for _, nb in ipairs(buckets[bucketKey(w, i)]) do
+                if nb ~= w then out[#out + 1] = nb end
+            end
+        end
+        table.sort(out, byPos)
+        adj[w] = out
+    end
+    graphs[key] = { list = list, adj = adj }
+    return graphs[key]
 end
 
--- BFS shortest path from `start` to `goal` over the word graph implied by
--- `word_list` (edges = one-letter-diff). Returns an array of words
+-- BFS shortest path from `start` to `goal` over the word graph `adj`
+-- (graphFor; edges = one-letter-diff). Returns an array of words
 -- start..goal inclusive, or nil if unreachable.
-local function bfsPath(start, goal, word_list)
+local function bfsPath(start, goal, adj)
     if start == goal then return { start } end
     local prev = { [start] = false }
     local queue = { start }
     local head = 1
     while head <= #queue do
         local cur = queue[head]; head = head + 1
-        for _, nb in ipairs(neighbors(cur, word_list)) do
+        for _, nb in ipairs(adj[cur]) do
             if prev[nb] == nil then
                 prev[nb] = cur
                 if nb == goal then
@@ -130,7 +156,8 @@ function WordLadderBoard:newPuzzle(word_length, difficulty, lang)
     self.difficulty  = difficulty or self.difficulty
     self.lang        = lang or self.lang
 
-    local word_list     = wordsOfLength(self.word_length, self.lang)
+    local graph         = graphFor(self.word_length, self.lang)
+    local word_list, adj = graph.list, graph.adj
     local target_steps  = DIFFICULTY_STEPS[self.difficulty] or DIFFICULTY_STEPS.easy
 
     local best_start, best_end, best_path
@@ -142,7 +169,7 @@ function WordLadderBoard:newPuzzle(word_length, difficulty, lang)
             local last_new = start
             for _ = 1, target_steps do
                 local candidates = {}
-                for _, nb in ipairs(neighbors(cur, word_list)) do
+                for _, nb in ipairs(adj[cur]) do
                     if not visited[nb] then candidates[#candidates + 1] = nb end
                 end
                 if #candidates == 0 then break end
@@ -151,7 +178,7 @@ function WordLadderBoard:newPuzzle(word_length, difficulty, lang)
                 last_new = cur
             end
             if last_new ~= start then
-                local path = bfsPath(start, last_new, word_list)
+                local path = bfsPath(start, last_new, adj)
                 if path and #path >= 2 then
                     best_start, best_end, best_path = start, last_new, path
                     if #path - 1 >= math.min(2, target_steps) then break end
@@ -161,7 +188,7 @@ function WordLadderBoard:newPuzzle(word_length, difficulty, lang)
 
         if not best_start then
             for _, w in ipairs(word_list) do
-                local nbs = neighbors(w, word_list)
+                local nbs = adj[w]
                 if #nbs > 0 then
                     best_start, best_end = w, nbs[1]
                     best_path = { w, nbs[1] }

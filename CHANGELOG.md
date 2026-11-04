@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2026-11-04
+
+### Changed
+- Faster new puzzles: each word's one-letter neighbours are looked up
+  instead of comparing it with every word of the same length, and the word
+  list is built once instead of for every puzzle. A 4-letter Hard ladder
+  went from up to 0.1 s on a desktop (2 s on a reader) to under 0.01 s.
+  Same puzzles as before.
+
 ## [1.1.3] - 2026-11-03
 
 ### Changed

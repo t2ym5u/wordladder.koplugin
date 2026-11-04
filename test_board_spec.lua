@@ -225,3 +225,45 @@ describe("WordLadderBoard", function()
         end)
     end)
 end)
+
+-- 1.2.0: neighbours come from a cached wildcard-bucket graph instead of a
+-- scan of every same-length word. Every ladder must still be a valid,
+-- shortest chain of dictionary words, and generation must stay quick.
+describe("word graph", function()
+    local Board
+
+    setup(function()
+        Board = require("board")
+    end)
+
+    local function oneLetterDiff(a, b)
+        local d = 0
+        for i = 1, #a do if a:sub(i, i) ~= b:sub(i, i) then d = d + 1 end end
+        return #a == #b and d == 1
+    end
+
+    it("builds valid ladders for every length, difficulty and language", function()
+        local t0 = os.clock()
+        local n = 0
+        for _, lang in ipairs{ "en", "fr" } do
+            for _, len in ipairs(Board.WORD_LENGTHS) do
+                for _, d in ipairs{ "easy", "medium", "hard" } do
+                    for seed = 1, 20 do
+                        math.randomseed(seed)
+                        local b = Board:new{ word_length = len, difficulty = d, lang = lang }
+                        b:newPuzzle()
+                        local p = b.solution_path
+                        assert.are.equal(b.start_word, p[1])
+                        assert.are.equal(b.end_word, p[#p])
+                        for i = 2, #p do
+                            assert.is_true(oneLetterDiff(p[i - 1], p[i]), p[i - 1] .. ">" .. p[i])
+                        end
+                        n = n + 1
+                    end
+                end
+            end
+        end
+        -- was up to ~0.1 s per puzzle before 1.2.0
+        assert.is_true((os.clock() - t0) / n < 0.02)
+    end)
+end)
