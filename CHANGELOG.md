@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0] - 2026-11-04
+
+### Changed
+- Bigger keys in landscape: the keyboard panel beside the ladder takes half
+  the screen instead of 36 %, so each key is about 40 % wider. Portrait is
+  unchanged.
+- Needs game-common 1.13.0.
+- Uses less memory: the game loads when you open it, not when KOReader
+  starts, so it no longer takes memory or startup time while unplayed.
+- Uses less memory: the word lists load when the game opens, only for the
+  language played, and are freed when it closes.
+
 ## [1.2.0] - 2026-11-04
 
 ### Changed
