@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.2] - 2026-11-05
+
+### Fixed
+- English puzzles no longer start or end on first names, places, brands,
+  abbreviations or foreign words (Aaron, Cairo, Buick, ASAP...): 622 such
+  words are gone from the English list, which keeps only dictionary words
+  (plus email, login, admin, cyber, spam, manga and tech). They are no
+  longer accepted as steps either.
+
 ## [1.3.1] - 2026-11-04
 
 ### Fixed

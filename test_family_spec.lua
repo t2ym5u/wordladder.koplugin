@@ -40,4 +40,15 @@ describe("family-friendly puzzles", function()
             end)
         end
     end
+
+    -- The English list used to carry names, brands and abbreviations (629
+    -- words outside the ENABLE dictionary), which the game drew as puzzles.
+    it("the English list has no first names, places, brands or abbreviations", function()
+        local en = dofile(DIR .. "words_en.lua")
+        for _, w in ipairs({ "aaron", "susan", "allah", "jesus", "cairo", "buick", "bosch",
+                             "amex", "aclu", "asap", "acct", "clit", "negro", "twink" }) do
+            assert.is_nil(en[w], w)
+        end
+        assert.is_true(en.cat and en.word and en.email and true)
+    end)
 end)
