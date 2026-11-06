@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.0] - 2026-11-05
+
+### Changed
+- The three levels now really differ: the target sits at an exact fewest
+  number of steps from the start word -- Easy 2-3, Medium 4-5, Hard 6-9.
+  Before, a level only set the length of a random walk, and any ladder of
+  2 steps or more was accepted, so Hard (mean 3.6 steps in English) was
+  barely longer than Easy (2.5). A word length or language with no such
+  ladder from the start words tried gets the closest one. The puzzle a
+  seed gives is now the same on every device (the word list is sorted).
+
+### Fixed
+- "Lynch" and its forms (LYNCHED, LYNCHING, LYNCHERS...; LYNCHAGE,
+  LYNCHER... in French) are added to the family-friendly blocklist, so the
+  game never draws or reveals them. They are still accepted when typed.
+
 ## [1.3.2] - 2026-11-05
 
 ### Fixed

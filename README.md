@@ -17,7 +17,9 @@ Classic word-ladder puzzles: change one word into another, one letter at a time.
 ## Features
 
 - **Configurable word length**
-- **Three difficulty levels** — Easy, Medium, Hard
+- **Three difficulty levels**, set by the fewest steps the ladder needs:
+  Easy 2–3, Medium 4–5, Hard 6–9 (closest possible when a word length has
+  no such ladder)
 - **Hint** — reveals a valid next word
 - **Undo**
 - **Win tracking** — counts solved puzzles per session

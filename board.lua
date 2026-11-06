@@ -16,8 +16,18 @@ end
 local WORD_LENGTHS        = { 3, 4, 5 }
 local DEFAULT_WORD_LENGTH = 4
 local DEFAULT_DIFFICULTY  = "easy"
-local DIFFICULTY_STEPS    = { easy = 3, medium = 5, hard = 7 }
-local GENERATE_ATTEMPTS   = 20
+-- Each level asks for a target at an exact optimal distance (the fewest
+-- steps from the start word): Easy 2-3, Medium 4-5, Hard 6-9. Hard stops
+-- at 9 because some 5-letter words sit at the end of long chains (37 steps
+-- in English), a chore to type rather than a harder puzzle. When the word
+-- graph has no such pair from the start words tried, the puzzle comes as
+-- close to the band as it can.
+local DIFFICULTY_BANDS    = {
+    easy   = { 2, 3 },
+    medium = { 4, 5 },
+    hard   = { 6, 9 },
+}
+local GENERATE_ATTEMPTS   = 30
 
 -- A language's word data -- its dictionary (word -> true) and the word graphs
 -- built from it (graphFor) -- loads the first time that language is played,
@@ -65,7 +75,7 @@ end
 -- buckets ("c_t" -> cat, cot, cut...) instead of scanning the whole list for
 -- every visited word, which made a 4-letter Hard ladder take ~0.1 s on a
 -- desktop (seconds on a reader), and the list was rebuilt for every puzzle.
--- Neighbours stay in list order, so a seed picks the same ladder as before.
+-- Neighbours stay in list order, so a seed always picks the same ladder.
 local function graphFor(len, lang)
     local d = langData(lang)
     local graphs = d.graphs
@@ -76,9 +86,12 @@ local function graphFor(len, lang)
     for w, _ in pairs(dict) do
         if #w == len and not blocked[w:upper()] then
             list[#list + 1] = w
-            pos[w] = #list
         end
     end
+    -- Alphabetical, not the dictionary's hash order: a seed must give the
+    -- same ladder on every device and Lua build.
+    table.sort(list)
+    for i, w in ipairs(list) do pos[w] = i end
     local function bucketKey(w, i) return w:sub(1, i - 1) .. "_" .. w:sub(i + 1) end
     local buckets = {}
     for _, w in ipairs(list) do
@@ -106,33 +119,43 @@ local function graphFor(len, lang)
     return graphs[len]
 end
 
--- BFS shortest path from `start` to `goal` over the word graph `adj`
--- (graphFor; edges = one-letter-diff). Returns an array of words
--- start..goal inclusive, or nil if unreachable.
-local function bfsPath(start, goal, adj)
-    if start == goal then return { start } end
-    local prev = { [start] = false }
-    local queue = { start }
+-- Breadth-first search from `start` over the word graph `adj` (graphFor;
+-- edges = one-letter changes). Returns `order` (every reachable word, in
+-- visiting order), `dist` (word -> fewest steps from start) and `prev`
+-- (word -> the word before it on one shortest path; start -> false).
+local function bfsFrom(start, adj)
+    local dist, prev = { [start] = 0 }, { [start] = false }
+    local order = { start }
     local head = 1
-    while head <= #queue do
-        local cur = queue[head]; head = head + 1
+    while head <= #order do
+        local cur = order[head]; head = head + 1
+        local d = dist[cur] + 1
         for _, nb in ipairs(adj[cur]) do
-            if prev[nb] == nil then
-                prev[nb] = cur
-                if nb == goal then
-                    local path = { goal }
-                    local node = goal
-                    while prev[node] do
-                        node = prev[node]
-                        table.insert(path, 1, node)
-                    end
-                    return path
-                end
-                queue[#queue + 1] = nb
+            if dist[nb] == nil then
+                dist[nb], prev[nb] = d, cur
+                order[#order + 1] = nb
             end
         end
     end
-    return nil
+    return order, dist, prev
+end
+
+-- The shortest path start..goal from bfsFrom's `prev`.
+local function pathTo(goal, prev)
+    local path = { goal }
+    local node = goal
+    while prev[node] do
+        node = prev[node]
+        table.insert(path, 1, node)
+    end
+    return path
+end
+
+-- How far `d` steps is from the band { lo, hi } (0 inside it).
+local function bandGap(d, band)
+    if d < band[1] then return band[1] - d end
+    if d > band[2] then return d - band[2] end
+    return 0
 end
 
 -- ---------------------------------------------------------------------------
@@ -164,12 +187,14 @@ function WordLadderBoard:new(opts)
     return obj
 end
 
--- Random-walk from a random start word (avoiding immediate revisits) for
--- target_steps hops, then re-derive the true shortest path via BFS so
--- solution_path/getHint always reflect an optimal route, not the (possibly
--- longer) walk that discovered the end word. Retries up to
--- GENERATE_ATTEMPTS times if a walk dead-ends too early; falls back to any
--- directly-connected pair if every attempt fails.
+-- Picks a random start word, runs a BFS from it, and takes a random target
+-- among the words whose optimal distance falls in the level's band
+-- (DIFFICULTY_BANDS). A start whose component never reaches the band is
+-- replaced by another, up to GENERATE_ATTEMPTS times; after that the
+-- puzzle uses the target closest to the band seen so far, so a small graph
+-- still gets its longest ladders on Hard. solution_path is the BFS path, so
+-- it is optimal and its length is the puzzle's real difficulty. Uses only
+-- math.random: a seed gives the same puzzle every time.
 function WordLadderBoard:newPuzzle(word_length, difficulty, lang)
     self.word_length = word_length or self.word_length
     self.difficulty  = difficulty or self.difficulty
@@ -177,45 +202,41 @@ function WordLadderBoard:newPuzzle(word_length, difficulty, lang)
 
     local graph         = graphFor(self.word_length, self.lang)
     local word_list, adj = graph.list, graph.adj
-    local target_steps  = DIFFICULTY_STEPS[self.difficulty] or DIFFICULTY_STEPS.easy
+    local band          = DIFFICULTY_BANDS[self.difficulty] or DIFFICULTY_BANDS.easy
 
-    local best_start, best_end, best_path
+    local best_start, best_path, best_gap
     if #word_list >= 2 then
         for _ = 1, GENERATE_ATTEMPTS do
             local start = word_list[math.random(#word_list)]
-            local cur = start
-            local visited = { [start] = true }
-            local last_new = start
-            for _ = 1, target_steps do
-                local candidates = {}
-                for _, nb in ipairs(adj[cur]) do
-                    if not visited[nb] then candidates[#candidates + 1] = nb end
-                end
-                if #candidates == 0 then break end
-                cur = candidates[math.random(#candidates)]
-                visited[cur] = true
-                last_new = cur
-            end
-            if last_new ~= start then
-                local path = bfsPath(start, last_new, adj)
-                if path and #path >= 2 then
-                    best_start, best_end, best_path = start, last_new, path
-                    if #path - 1 >= math.min(2, target_steps) then break end
+            local order, dist, prev = bfsFrom(start, adj)
+            -- Words in the band; else the ones closest to it.
+            local cands, gap = {}, math.huge
+            for i = 2, #order do
+                local w = order[i]
+                local g = bandGap(dist[w], band)
+                if g < gap then
+                    cands, gap = { w }, g
+                elseif g == gap then
+                    cands[#cands + 1] = w
                 end
             end
-        end
-
-        if not best_start then
-            for _, w in ipairs(word_list) do
-                local nbs = adj[w]
-                if #nbs > 0 then
-                    best_start, best_end = w, nbs[1]
-                    best_path = { w, nbs[1] }
-                    break
-                end
+            if #cands > 0 and (best_gap == nil or gap < best_gap) then
+                local target = cands[math.random(#cands)]
+                best_start, best_path, best_gap = start, pathTo(target, prev), gap
+                if gap == 0 then break end
             end
         end
     end
+    if not best_path then
+        -- Every start tried had no neighbour: any connected pair will do.
+        for _, w in ipairs(word_list) do
+            if #adj[w] > 0 then
+                best_start, best_path = w, { w, adj[w][1] }
+                break
+            end
+        end
+    end
+    local best_end = best_path and best_path[#best_path]
 
     self.start_word    = best_start
     self.end_word       = best_end
