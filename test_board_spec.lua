@@ -46,6 +46,70 @@ describe("WordLadderBoard", function()
             end
         end)
 
+        -- Independent shortest distance: BFS over the puzzle words (the
+        -- dictionary minus the blocklist), neighbours by wildcard buckets.
+        local function shortest(start, goal, lang)
+            local dict = dofile(DIR .. "words_" .. lang .. ".lua")
+            local Blocklist = dofile(DIR .. "blocklist.lua")
+            local len = #start
+            local buckets = {}
+            for w in pairs(dict) do
+                if #w == len and not Blocklist.isBlocked(w, lang) then
+                    for i = 1, len do
+                        local k = w:sub(1, i - 1) .. "*" .. w:sub(i + 1)
+                        buckets[k] = buckets[k] or {}
+                        table.insert(buckets[k], w)
+                    end
+                end
+            end
+            local dist, queue, head = { [start] = 0 }, { start }, 1
+            while head <= #queue do
+                local cur = queue[head]; head = head + 1
+                if cur == goal then return dist[cur] end
+                for i = 1, len do
+                    for _, nb in ipairs(buckets[cur:sub(1, i - 1) .. "*" .. cur:sub(i + 1)] or {}) do
+                        if dist[nb] == nil then
+                            dist[nb] = dist[cur] + 1
+                            queue[#queue + 1] = nb
+                        end
+                    end
+                end
+            end
+        end
+
+        -- The levels used to differ only by the length of a random walk, and
+        -- any ladder of 2+ steps was accepted, so Hard often needed 2 steps.
+        it("puts the target at the level's optimal distance band", function()
+            local bands = { easy = { 2, 3 }, medium = { 4, 5 }, hard = { 6, 9 } }
+            for _, lang in ipairs({ "en", "fr" }) do
+                for _, len in ipairs(Board.WORD_LENGTHS) do
+                    for diff, band in pairs(bands) do
+                        math.randomseed(len * 7 + #diff)
+                        for _ = 1, 4 do
+                            local b = Board:new{ word_length = len, difficulty = diff, lang = lang }
+                            b:newPuzzle()
+                            local steps = #b.solution_path - 1
+                            local where = ("%s %d %s"):format(lang, len, diff)
+                            assert.is_true(steps >= band[1] and steps <= band[2], where .. ": " .. steps)
+                            assert.are.equal(steps, shortest(b.start_word, b.end_word, lang), where)
+                        end
+                    end
+                end
+            end
+        end)
+
+        it("gives the same puzzle for the same seed", function()
+            for _, diff in ipairs({ "easy", "medium", "hard" }) do
+                math.randomseed(1234)
+                local a = Board:new{ word_length = 5, difficulty = diff, lang = "fr" }
+                a:newPuzzle()
+                math.randomseed(1234)
+                local b = Board:new{ word_length = 5, difficulty = diff, lang = "fr" }
+                b:newPuzzle()
+                assert.are.same(a.solution_path, b.solution_path)
+            end
+        end)
+
         it("every consecutive pair in solution_path differs by exactly one letter", function()
             local b = newBoard(4, "hard")
             for i = 1, #b.solution_path - 1 do
