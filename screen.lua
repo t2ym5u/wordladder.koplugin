@@ -70,7 +70,7 @@ function WordLadderScreen:init()
     local state       = self.plugin:loadState()
     local word_length = self.plugin:getSetting("word_length", WordLadderBoard.DEFAULT_WORD_LENGTH)
     local difficulty  = self.plugin:getSetting("difficulty", WordLadderBoard.DEFAULT_DIFFICULTY)
-    local lang         = self.plugin:getSetting("lang", "en")
+    local lang         = self.plugin:getLang({ "fr", "en" })
     self.board = WordLadderBoard:new{ word_length = word_length, difficulty = difficulty, lang = lang }
     if not self.board:load(state) then
         self.board:newPuzzle()
@@ -223,10 +223,10 @@ function WordLadderScreen:openLangMenu()
     MenuHelper.openPickerMenu{
         title      = _("Language"),
         items      = items,
-        current_id = self.plugin:getSetting("lang", "en"),
+        current_id = self.plugin:getLang({ "fr", "en" }),
         parent     = self,
         on_select  = function(lang)
-            self.plugin:saveSetting("lang", lang)
+            self.plugin:setLang(lang)
             self.board = WordLadderBoard:new{ word_length = self.board.word_length, difficulty = self.board.difficulty, lang = lang }
             self.board:newPuzzle()
             self.plugin:saveState(self.board:serialize())
@@ -298,7 +298,7 @@ function WordLadderScreen:updateStatus(msg)
 end
 
 function WordLadderScreen:_langLabel()
-    local lang = self.plugin:getSetting("lang", "en")
+    local lang = self.plugin:getLang({ "fr", "en" })
     return T(_("Language: %1"), lang == "fr" and "FR" or "EN")
 end
 
