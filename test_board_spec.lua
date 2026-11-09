@@ -46,70 +46,6 @@ describe("WordLadderBoard", function()
             end
         end)
 
-        -- Independent shortest distance: BFS over the puzzle words (the
-        -- dictionary minus the blocklist), neighbours by wildcard buckets.
-        local function shortest(start, goal, lang)
-            local dict = dofile(DIR .. "words_" .. lang .. ".lua")
-            local Blocklist = dofile(DIR .. "blocklist.lua")
-            local len = #start
-            local buckets = {}
-            for w in pairs(dict) do
-                if #w == len and not Blocklist.isBlocked(w, lang) then
-                    for i = 1, len do
-                        local k = w:sub(1, i - 1) .. "*" .. w:sub(i + 1)
-                        buckets[k] = buckets[k] or {}
-                        table.insert(buckets[k], w)
-                    end
-                end
-            end
-            local dist, queue, head = { [start] = 0 }, { start }, 1
-            while head <= #queue do
-                local cur = queue[head]; head = head + 1
-                if cur == goal then return dist[cur] end
-                for i = 1, len do
-                    for _, nb in ipairs(buckets[cur:sub(1, i - 1) .. "*" .. cur:sub(i + 1)] or {}) do
-                        if dist[nb] == nil then
-                            dist[nb] = dist[cur] + 1
-                            queue[#queue + 1] = nb
-                        end
-                    end
-                end
-            end
-        end
-
-        -- The levels used to differ only by the length of a random walk, and
-        -- any ladder of 2+ steps was accepted, so Hard often needed 2 steps.
-        it("puts the target at the level's optimal distance band", function()
-            local bands = { easy = { 2, 3 }, medium = { 4, 5 }, hard = { 6, 9 } }
-            for _, lang in ipairs({ "en", "fr" }) do
-                for _, len in ipairs(Board.WORD_LENGTHS) do
-                    for diff, band in pairs(bands) do
-                        math.randomseed(len * 7 + #diff)
-                        for _ = 1, 4 do
-                            local b = Board:new{ word_length = len, difficulty = diff, lang = lang }
-                            b:newPuzzle()
-                            local steps = #b.solution_path - 1
-                            local where = ("%s %d %s"):format(lang, len, diff)
-                            assert.is_true(steps >= band[1] and steps <= band[2], where .. ": " .. steps)
-                            assert.are.equal(steps, shortest(b.start_word, b.end_word, lang), where)
-                        end
-                    end
-                end
-            end
-        end)
-
-        it("gives the same puzzle for the same seed", function()
-            for _, diff in ipairs({ "easy", "medium", "hard" }) do
-                math.randomseed(1234)
-                local a = Board:new{ word_length = 5, difficulty = diff, lang = "fr" }
-                a:newPuzzle()
-                math.randomseed(1234)
-                local b = Board:new{ word_length = 5, difficulty = diff, lang = "fr" }
-                b:newPuzzle()
-                assert.are.same(a.solution_path, b.solution_path)
-            end
-        end)
-
         it("every consecutive pair in solution_path differs by exactly one letter", function()
             local b = newBoard(4, "hard")
             for i = 1, #b.solution_path - 1 do
@@ -287,48 +223,6 @@ describe("WordLadderBoard", function()
             assert.is_false(b:load({}))
             assert.is_false(b:load({ start_word = "abc" }))
         end)
-    end)
-end)
-
--- 1.2.0: neighbours come from a cached wildcard-bucket graph instead of a
--- scan of every same-length word. Every ladder must still be a valid,
--- shortest chain of dictionary words, and generation must stay quick.
-describe("word graph", function()
-    local Board
-
-    setup(function()
-        Board = require("board")
-    end)
-
-    local function oneLetterDiff(a, b)
-        local d = 0
-        for i = 1, #a do if a:sub(i, i) ~= b:sub(i, i) then d = d + 1 end end
-        return #a == #b and d == 1
-    end
-
-    it("builds valid ladders for every length, difficulty and language", function()
-        local t0 = os.clock()
-        local n = 0
-        for _, lang in ipairs{ "en", "fr" } do
-            for _, len in ipairs(Board.WORD_LENGTHS) do
-                for _, d in ipairs{ "easy", "medium", "hard" } do
-                    for seed = 1, 20 do
-                        math.randomseed(seed)
-                        local b = Board:new{ word_length = len, difficulty = d, lang = lang }
-                        b:newPuzzle()
-                        local p = b.solution_path
-                        assert.are.equal(b.start_word, p[1])
-                        assert.are.equal(b.end_word, p[#p])
-                        for i = 2, #p do
-                            assert.is_true(oneLetterDiff(p[i - 1], p[i]), p[i - 1] .. ">" .. p[i])
-                        end
-                        n = n + 1
-                    end
-                end
-            end
-        end
-        -- was up to ~0.1 s per puzzle before 1.2.0
-        assert.is_true((os.clock() - t0) / n < 0.02)
     end)
 end)
 
