@@ -47,8 +47,18 @@ local function langData(lang)
     return d
 end
 
-local function dictionaryFor(lang)
-    return langData(lang).words
+-- Words a player may step through besides the dictionary: accepted_<lang>.lua
+-- (optional; French only, tools/build_accepted_fr.py), the rarer words of
+-- boggle.koplugin's list. Never in the word graphs, so puzzles, solutions and
+-- hints are the same with or without it. Loaded on the first word typed.
+local function isAccepted(lang, word)
+    local d = langData(lang)
+    if d.words[word] then return true end
+    if d.accepted == nil then
+        local fn = loadfile(_dir .. "accepted_" .. d.lang .. ".lua")
+        d.accepted = fn and fn() or false
+    end
+    return d.accepted and d.accepted[word] or false
 end
 
 -- Puzzles (start, target, the solution path and its hints) are built from
@@ -270,7 +280,7 @@ function WordLadderBoard:submit()
     if not oneLetterDiff(prev, word) then
         return "not_one_letter_diff"
     end
-    if not dictionaryFor(self.lang)[word] then
+    if not isAccepted(self.lang, word) then
         return "not_in_dictionary"
     end
     for _, w in ipairs(self.chain) do

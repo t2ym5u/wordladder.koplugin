@@ -114,6 +114,18 @@ describe("WordLadderBoard", function()
             end
         end)
 
+        -- 2026-11-24: accepted_fr.lua (tools/build_accepted_fr.py) lets a
+        -- player step through rarer French words; ABEE is one. It is not in
+        -- words_fr.lua, which the ladders are built from.
+        it("accepts a French step from accepted_fr.lua, outside the ladder words", function()
+            assert.is_nil(dofile(DIR .. "words_fr.lua").abee)
+            local b = Board:new()
+            assert.is_true(b:load{ lang = "fr", word_length = 4, start_word = "abbe",
+                end_word = "abri", chain = { "abbe" }, solution_path = { "abbe" } })
+            for c in ("abee"):gmatch(".") do b:typeLetter(c) end
+            assert.are.equal("ok", b:submit())
+        end)
+
         it("accepts the first solution-path step and advances the chain", function()
             local b = newBoard(4, "medium")
             local step = b.solution_path[2]

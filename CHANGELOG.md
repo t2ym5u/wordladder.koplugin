@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.0] - 2026-11-24
+
+### Changed
+- French accepts 6,711 more words as steps (`accepted_fr.lua`), from
+  Boggle's word list, which now includes the Grammalecte lexicon (Dicollecte,
+  MPL 2.0). Ladders, their solutions, hints and the Daily Challenge are
+  unchanged: these words are never used to build a ladder.
+
 ## [1.4.6] - 2026-11-24
 
 ### Changed
