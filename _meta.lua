@@ -1,7 +1,7 @@
 local _ = require("gettext")
 
 return {
-    version     = "1.4.4",
+    version     = "1.4.5",
     fullname    = _("Word Ladder"),
     description = _("Change one word into another, one letter at a time."),
 }
